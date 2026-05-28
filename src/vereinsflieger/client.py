@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from types import TracebackType
 from typing import Any, Final, Literal, Self
 from urllib.parse import quote
@@ -34,7 +34,7 @@ type StartType = Literal["E", "W", "F"]
 type ChargeMode = Literal[1, 2, 3, 4, 5, 7]
 type Gender = Literal["m", "w", "d"]
 type WorkHourStatus = Literal[1, 2, 3]
-type PaymentMode = Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]
+type PaymentMode = Literal[0, 1, 2, 4, 5, 6, 7, 8]
 type TwoFactorProvider = Callable[[], str]
 type JsonDict = dict[str, Any]
 type DateLike = str | date
@@ -62,10 +62,17 @@ def _format_date(value: DateLike | None) -> str | None:
 
 
 def _format_datetime(value: DateTimeLike | None) -> str | None:
-    """Convert ``datetime`` (or pass through ``str``) into ``YYYY-MM-DD HH:MM``."""
+    """Convert ``datetime`` into the API's UTC ``YYYY-MM-DD HH:MM`` format.
+
+    The API interprets all times as UTC. Timezone-aware datetimes are
+    therefore converted to UTC before formatting; naive datetimes are assumed
+    to already be in UTC and formatted as-is. Strings pass through verbatim.
+    """
     if value is None:
         return None
     if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc)
         return value.strftime("%Y-%m-%d %H:%M")
     return value
 
@@ -178,7 +185,12 @@ class Client:
         self._session = session or requests.Session()
         self._access_token: str | None = None
         self._user_information: JsonDict | None = None
-        self._fetch_access_token()
+        try:
+            self._fetch_access_token()
+        except Exception:
+            if self._owns_session:
+                self._session.close()
+            raise
 
     # ------------------------------------------------------------------
     # Context manager
@@ -363,7 +375,7 @@ class Client:
         try:
             response = self._session.get(url, timeout=self.timeout)
         except requests.RequestException as exc:
-            raise AuthenticationException(
+            raise APIException(
                 f"Network error obtaining access token: {exc}"
             ) from exc
         if response.status_code != 200:
@@ -473,7 +485,7 @@ class Client:
                 url, data=dict(payload), timeout=self.timeout
             )
         except requests.RequestException as exc:
-            raise AuthenticationException(
+            raise APIException(
                 f"Network error during sign-in: {exc}"
             ) from exc
 
@@ -831,6 +843,8 @@ class Client:
         spid: int | None = None,
     ) -> JsonDict:
         """Create a new accounting booking (requires bookkeeping mode v2)."""
+        if value <= 0:
+            raise ValueError("value must be greater than 0")
         return self._request_record(
             "POST",
             "account",

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -57,6 +57,11 @@ class TestHelpers:
 
     def test_format_datetime_passthrough_str(self) -> None:
         assert _format_datetime("2026-05-11 14:30") == "2026-05-11 14:30"
+
+    def test_format_datetime_converts_aware_to_utc(self) -> None:
+        cest = timezone(timedelta(hours=2))
+        aware = datetime(2026, 5, 11, 18, 30, tzinfo=cest)
+        assert _format_datetime(aware) == "2026-05-11 16:30"
 
     def test_drop_none_filters_none(self) -> None:
         assert _drop_none({"a": 1, "b": None, "c": "x"}) == {"a": 1, "c": "x"}
@@ -145,6 +150,23 @@ class TestConstruction:
             status=200,
         )
         with pytest.raises(AuthenticationException):
+            Client(host=TEST_HOST, appkey=TEST_APPKEY)
+
+    def test_accesstoken_network_error_raises_api(
+        self,
+        mocked_responses: responses.RequestsMock,
+    ) -> None:
+        import requests as _requests
+
+        def _boom(*_args, **_kwargs):
+            raise _requests.ConnectionError("network down")
+
+        mocked_responses.add_callback(
+            responses.GET,
+            f"{TEST_HOST}/interface/rest/auth/accesstoken",
+            callback=_boom,
+        )
+        with pytest.raises(APIException, match="Network error"):
             Client(host=TEST_HOST, appkey=TEST_APPKEY)
 
 
@@ -342,6 +364,24 @@ class TestLogin:
         )
         client.two_factor_provider = lambda: "000000"
         with pytest.raises(AuthenticationException, match="Invalid 2FA code"):
+            client.login("alice", "pw")
+
+    def test_login_network_error_raises_api(
+        self,
+        mocked_responses: responses.RequestsMock,
+        client: Client,
+    ) -> None:
+        import requests as _requests
+
+        def _boom(*_args, **_kwargs):
+            raise _requests.ConnectionError("network down")
+
+        mocked_responses.add_callback(
+            responses.POST,
+            f"{TEST_HOST}/interface/rest/auth/signin",
+            callback=_boom,
+        )
+        with pytest.raises(APIException, match="Network error"):
             client.login("alice", "pw")
 
     def test_logout_uses_token_in_url(
@@ -861,6 +901,19 @@ class TestBookings:
         assert body["creditaccount"] == "8400"
         assert body["bookingtext"] == "Fuel"
         assert body["salestax"] == "19.0"
+
+    def test_add_booking_rejects_nonpositive_value(
+        self,
+        authed_client: Client,
+    ) -> None:
+        with pytest.raises(ValueError, match="greater than 0"):
+            authed_client.add_booking(
+                bookingdate=date(2026, 5, 11),
+                value=0,
+                debitaccount="1200",
+                creditaccount="8400",
+                bookingtext="Fuel",
+            )
 
     def test_edit_booking(
         self,

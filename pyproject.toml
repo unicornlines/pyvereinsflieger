@@ -9,7 +9,7 @@ description = "Python REST client for the Vereinsflieger flight logbook API"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
-authors = [{ name = "Sophie Bertsch" }]
+authors = [{ name = "Unicornlines" }]
 keywords = ["vereinsflieger", "aviation", "flightlog", "rest", "api"]
 classifiers = [
     "Development Status :: 4 - Beta",

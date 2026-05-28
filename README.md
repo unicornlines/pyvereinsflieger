@@ -1,27 +1,33 @@
 # vereinsflieger
 
 A Python REST client for the [Vereinsflieger](https://www.vereinsflieger.de)
-flight logbook service. Implements every endpoint of the published
-`REST-API-Spezifikation` (version 2025-07-29), with transparent two-factor
-authentication via stored TOTP secrets.
+flight logbook service. It covers every endpoint of the published
+`REST-API-Spezifikation` (version 2025-07-29) and handles two-factor
+authentication transparently when a TOTP secret is configured.
 
 ## Features
 
-- Full coverage of all documented endpoints: authentication, flights,
+- Complete coverage of the documented endpoints: authentication, flights,
   calendar, members, reservations, maintenance, accounting bookings, work
-  hours, sales, backup, vouchers.
-- Built-in TOTP code generation (RFC 6238) — pass a `totp_secret` once and
-  let the client handle 2FA automatically.
-- Typed, fully docstringed, modern Python (3.12+, PEP 695 type aliases,
-  `match`/`case`, `Self`).
+  hours, sales, backup, and vouchers.
+- Built-in TOTP code generation (RFC 6238): supply a `totp_secret` once and
+  the client answers 2FA challenges on its own.
+- Typed and documented throughout, targeting modern Python (3.12+, PEP 695
+  type aliases, `match`/`case`, `Self`).
 - Context-manager API that logs out and closes the HTTP session on exit.
-- Sensible defaults: password is MD5-hashed locally before transmission;
-  credentials never end up in URL query strings; per-request timeouts.
+- Safe defaults: the password is MD5-hashed locally before transmission,
+  credentials never appear in URL query strings, and every request has a
+  timeout.
 
-## Install
+## Requirements
+
+- Python 3.12 or newer
+- [`requests`](https://pypi.org/project/requests/) 2.31+
+
+## Installation
 
 ```bash
-pip install git+https://github.com/<you>/vereinsflieger.git@v0.1.0
+pip install git+https://github.com/<you>/vereinsflieger.git
 ```
 
 For local development:
@@ -44,16 +50,33 @@ with Client(appkey="YOUR_APP_KEY", totp_secret="JBSWY3DPEHPK3PXP") as vf:
         print(flight["dateofflight"], flight["callsign"])
 ```
 
-If your account does not use 2FA, omit `totp_secret`:
+The client requests an anonymous access token on construction, so creating a
+`Client` makes one network call. Use it as a context manager to log out and
+release the session automatically.
 
-```python
-with Client(appkey="YOUR_APP_KEY") as vf:
-    vf.login(username="alice", password="hunter2")
-    ...
-```
+If the account belongs to more than one club, pass `cid` to `login`. Customers
+of Flightcenter Plus should set `host="https://www.flightcenterplus.de"`.
 
-For interactive use (prompts on stdin) or for sourcing the code from a UI,
-pass a callable to `two_factor_provider` instead of `totp_secret`.
+## Two-factor authentication
+
+If 2FA is enabled on the account, choose one of the following:
+
+- **Stored secret** — pass `totp_secret=...` to the constructor and the client
+  derives a fresh 6-digit code whenever the API asks for one.
+- **Custom provider** — pass `two_factor_provider=callable`, where `callable`
+  returns the current code. Useful for sourcing it from a UI or a secrets
+  manager. (`totp_secret` and `two_factor_provider` are mutually exclusive.)
+- **One-off code** — pass `auth_secret="123456"` directly to `login`.
+
+Without any of these, the default provider prompts for a code on stdin. Pass
+`two_factor_provider=None` to raise `TwoFactorRequiredException` instead.
+
+## Dates and times
+
+Methods that take a date or datetime accept either an ISO-formatted string or a
+Python `date` / `datetime` object. The API expects all timestamps in UTC:
+timezone-aware datetimes are converted to UTC automatically, and naive
+datetimes are sent unchanged (i.e. assumed to already be UTC).
 
 ## Endpoint reference
 
@@ -73,32 +96,39 @@ pass a callable to `two_factor_provider` instead of `totp_secret`.
 
 ## TOTP helper
 
-The TOTP implementation is exported for direct use, e.g. for verifying that a
-configured secret matches what an authenticator app shows:
+The TOTP implementation is exported for direct use, for example to verify that
+a configured secret matches what an authenticator app shows:
 
 ```python
 from vereinsflieger import generate_totp, make_totp_provider
 
-code = generate_totp("JBSWY3DPEHPK3PXP")  # current 6-digit code
+code = generate_totp("JBSWY3DPEHPK3PXP")          # current 6-digit code
 provider = make_totp_provider("JBSWY3DPEHPK3PXP")  # for Client(two_factor_provider=...)
 ```
 
 The decoder accepts mixed case, embedded whitespace, hyphens, and missing
 base32 padding.
 
-## Exceptions
+## Error handling
 
 All errors derive from `VereinsfliegerError`:
 
 - `AuthenticationException` — wrong credentials, expired session, 401/403.
-- `TwoFactorRequiredException` — API signalled `need_2fa` but no provider
+- `TwoFactorRequiredException` — the API signalled `need_2fa` but no provider
   is configured.
-- `APIException` — transport errors, 400/404, non-JSON responses.
+- `APIException` — transport errors, 400/404, and non-JSON responses.
 
-## Rate limit
+## Rate limits and terms of use
 
-The Vereinsflieger API limits each `appkey` to 500 requests per day.
-Commercial use of the interface is not permitted by the provider.
+The Vereinsflieger API limits each `appkey` to 500 requests per day. Per the
+provider's documentation, commercial use of the interface is not permitted.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
 
 ## License
 
