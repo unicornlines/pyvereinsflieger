@@ -8,7 +8,7 @@ from collections.abc import Iterator
 import pytest
 import responses
 
-from vereinsflieger import Client
+from pyvereinsflieger import Client
 
 
 TEST_HOST = "https://test.vereinsflieger.invalid"

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vereinsflieger"
+name = "pyvereinsflieger"
 version = "0.1.0"
 description = "Python REST client for the Vereinsflieger flight logbook API"
 readme = "README.md"
@@ -31,11 +31,11 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vereinsflieger"]
+packages = ["src/pyvereinsflieger"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/vereinsflieger",
+    "src/pyvereinsflieger",
     "tests",
     "README.md",
     "LICENSE",

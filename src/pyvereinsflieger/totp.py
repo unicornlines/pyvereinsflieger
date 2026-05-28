@@ -2,7 +2,7 @@
 
 The Vereinsflieger 2FA flow expects a 6-digit code from a TOTP authenticator
 (such as Google Authenticator, Authy or 1Password). When the shared secret is
-known to the program, it can be passed to :class:`Vereinsflieger.Client` (via
+known to the program, it can be passed to :class:`pyvereinsflieger.Client` (via
 the ``totp_secret`` keyword or :func:`make_totp_provider`) so that codes are
 generated automatically on each login.
 """
@@ -107,7 +107,7 @@ def make_totp_provider(
 ) -> Callable[[], str]:
     """Return a zero-argument callable that yields fresh TOTP codes on each call.
 
-    Pass the returned callable as :class:`Vereinsflieger.Client`'s
+    Pass the returned callable as :class:`pyvereinsflieger.Client`'s
     ``two_factor_provider`` to enable transparent 2FA handling, or supply
     ``totp_secret`` to the constructor for the same effect.
     """

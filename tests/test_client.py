@@ -9,13 +9,13 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 import responses
 
-from vereinsflieger import (
+from pyvereinsflieger import (
     APIException,
     AuthenticationException,
     Client,
     TwoFactorRequiredException,
 )
-from vereinsflieger.client import (
+from pyvereinsflieger.client import (
     _drop_none,
     _format_date,
     _format_datetime,

@@ -1,4 +1,4 @@
-# vereinsflieger
+# pyvereinsflieger
 
 A Python REST client for the [Vereinsflieger](https://www.vereinsflieger.de)
 flight logbook service. It covers every endpoint of the published
@@ -27,14 +27,14 @@ authentication transparently when a TOTP secret is configured.
 ## Installation
 
 ```bash
-pip install git+https://github.com/<you>/vereinsflieger.git
+pip install git+https://github.com/<you>/pyvereinsflieger.git
 ```
 
 For local development:
 
 ```bash
-git clone https://github.com/<you>/vereinsflieger.git
-cd vereinsflieger
+git clone https://github.com/<you>/pyvereinsflieger.git
+cd pyvereinsflieger
 pip install -e ".[dev]"
 pytest
 ```
@@ -42,7 +42,7 @@ pytest
 ## Quick start
 
 ```python
-from vereinsflieger import Client
+from pyvereinsflieger import Client
 
 with Client(appkey="YOUR_APP_KEY", totp_secret="JBSWY3DPEHPK3PXP") as vf:
     vf.login(username="alice", password="hunter2")
@@ -100,7 +100,7 @@ The TOTP implementation is exported for direct use, for example to verify that
 a configured secret matches what an authenticator app shows:
 
 ```python
-from vereinsflieger import generate_totp, make_totp_provider
+from pyvereinsflieger import generate_totp, make_totp_provider
 
 code = generate_totp("JBSWY3DPEHPK3PXP")          # current 6-digit code
 provider = make_totp_provider("JBSWY3DPEHPK3PXP")  # for Client(two_factor_provider=...)

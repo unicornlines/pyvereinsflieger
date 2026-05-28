@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 import responses
 
-from vereinsflieger import (
+from pyvereinsflieger import (
     Client,
     generate_totp,
     make_totp_provider,
 )
-from vereinsflieger.totp import _decode_base32_secret
+from pyvereinsflieger.totp import _decode_base32_secret
 
 from .conftest import TEST_APPKEY, TEST_HOST, TEST_TOKEN, parse_body
 
@@ -131,7 +131,7 @@ class TestProviderHelper:
         provider = make_totp_provider(SHA1_SECRET)
         clock = iter([0.0, 30.0, 60.0, 90.0])
         monkeypatch.setattr(
-            "vereinsflieger.totp.time.time", lambda: next(clock)
+            "pyvereinsflieger.totp.time.time", lambda: next(clock)
         )
         codes = [provider() for _ in range(4)]
         assert codes == ["755224", "287082", "359152", "969429"]
@@ -169,7 +169,7 @@ class TestClientIntegration:
         )
 
         # Pin the clock so we know which TOTP code will be generated.
-        monkeypatch.setattr("vereinsflieger.totp.time.time", lambda: 0.0)
+        monkeypatch.setattr("pyvereinsflieger.totp.time.time", lambda: 0.0)
         expected_code = generate_totp(SHA1_SECRET, timestamp=0.0)
 
         client = Client(
