@@ -46,8 +46,13 @@ _REDACTED_KEYS: Final = frozenset(
 
 
 def _md5(value: str) -> str:
-    """Return the lowercase hex MD5 digest of ``value`` (UTF-8 encoded)."""
-    return hashlib.md5(value.encode("utf-8")).hexdigest()
+    """Return the lowercase hex MD5 digest of ``value`` (UTF-8 encoded).
+
+    The Vereinsflieger API mandates an MD5-hashed password; this is a protocol
+    requirement, not a security choice. ``usedforsecurity=False`` keeps the call
+    working on FIPS-restricted Python builds, where unqualified MD5 is rejected.
+    """
+    return hashlib.md5(value.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
 def _format_date(value: DateLike | None) -> str | None:
@@ -242,6 +247,13 @@ class Client:
         parts = [quote(str(s), safe="") for s in segments]
         return f"{self.host}/{self.BASE_PATH}/{'/'.join(parts)}"
 
+    def _redact_url(self, url: str) -> str:
+        """Mask the access token if it appears as a path segment (e.g. signout)."""
+        token = self._access_token
+        if not token:
+            return url
+        return url.replace(quote(token, safe=""), "<redacted>")
+
     def _request(
         self,
         method: str,
@@ -269,7 +281,11 @@ class Client:
                 data = {**token, **(data or {})}
 
         logger.debug(
-            "%s %s params=%s data=%s", method, url, _redact(params), _redact(data)
+            "%s %s params=%s data=%s",
+            method,
+            self._redact_url(url),
+            _redact(params),
+            _redact(data),
         )
         try:
             response = self._session.request(
